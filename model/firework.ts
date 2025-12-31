@@ -3,7 +3,7 @@ import { FireworkConfig, GRID_SIZE } from "./firework-config";
 
 export class Firework {
   private static readonly PARTICLE_COUNT = 500;
-  private static readonly EXPLOSION_HEIGHT = 15;
+  private static readonly EXPLOSION_HEIGHT = 40;
   private static readonly PIXEL_GEOMETRY = new THREE.PlaneGeometry(
     GRID_SIZE,
     GRID_SIZE
