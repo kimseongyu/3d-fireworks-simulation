@@ -4,12 +4,15 @@ import { useMemo } from "react";
 import { Firework } from "@/model/firework";
 import { fireworkConfigs, FireworkType } from "@/model/firework-config";
 
-interface SidebarProps {
+interface FireworkTypeListProps {
   selectedType: FireworkType;
-  onFireworkSelect?: (type: FireworkType) => void;
+  onFireworkSelect: (type: FireworkType) => void;
 }
 
-export const Sidebar = ({ selectedType, onFireworkSelect }: SidebarProps) => {
+export const FireworkTypeList = ({
+  selectedType,
+  onFireworkSelect,
+}: FireworkTypeListProps) => {
   const fireworkTypes: Array<{ type: FireworkType; firework: Firework }> =
     useMemo(() => {
       return (Object.keys(fireworkConfigs) as FireworkType[]).map((type) => ({
@@ -18,18 +21,13 @@ export const Sidebar = ({ selectedType, onFireworkSelect }: SidebarProps) => {
       }));
     }, []);
 
-  const handleSelect = (type: FireworkType) => {
-    onFireworkSelect?.(type);
-  };
-
   return (
-    <div className="h-full bg-gray-50 p-6 overflow-y-auto">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800">불꽃놀이 종류</h1>
+    <div>
       <div className="space-y-3">
         {fireworkTypes.map(({ type, firework }) => (
           <button
             key={type}
-            onClick={() => handleSelect(type)}
+            onClick={() => onFireworkSelect(type)}
             className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
               selectedType === type
                 ? "border-blue-500 bg-blue-50 shadow-md"
