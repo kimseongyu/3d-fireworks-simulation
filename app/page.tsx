@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { FireworkType, getDefaultFireworkType } from "@/model/firework-config";
-import { Canvas } from "@/components/Canvas";
+import { Canvas } from "@/components/canvas/Canvas";
 
 export default function Home() {
   const [selectedType, setSelectedType] = useState<FireworkType>(
