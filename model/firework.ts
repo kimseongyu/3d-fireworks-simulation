@@ -1,17 +1,11 @@
 import * as THREE from "three";
-import { FireworkConfig, GRID_SIZE } from "./firework-config";
+import { FireworkConfig } from "./firework-config";
+import { PIXEL_GEOMETRY, ROCKET_GEOMETRY } from "@/lib/three/assets";
+import { snapToGrid, getColorVariation } from "@/lib/utils";
 
 export class Firework {
   private static readonly PARTICLE_COUNT = 500;
-  private static readonly EXPLOSION_HEIGHT = 40;
-  private static readonly PIXEL_GEOMETRY = new THREE.PlaneGeometry(
-    GRID_SIZE,
-    GRID_SIZE
-  );
-  private static readonly ROCKET_GEOMETRY = new THREE.PlaneGeometry(
-    GRID_SIZE,
-    GRID_SIZE * 2
-  );
+  public static readonly EXPLOSION_HEIGHT = 40;
 
   constructor(private readonly config: FireworkConfig) {}
 
@@ -27,24 +21,12 @@ export class Firework {
     return this.config.baseColor;
   }
 
-  get explosionHeight(): number {
-    return Firework.EXPLOSION_HEIGHT;
-  }
-
-  private getColorVariation(): number {
-    return 0.7 + Math.random() * 0.3;
-  }
-
-  private snapToGrid(value: number): number {
-    return Math.round(value / GRID_SIZE) * GRID_SIZE;
-  }
-
   public createRocket(x: number, y: number, z: number) {
     const rocketMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const rocket = new THREE.Mesh(Firework.ROCKET_GEOMETRY, rocketMaterial);
+    const rocket = new THREE.Mesh(ROCKET_GEOMETRY, rocketMaterial);
 
-    const snappedX = this.snapToGrid(x);
-    const snappedY = this.snapToGrid(y);
+    const snappedX = snapToGrid(x);
+    const snappedY = snapToGrid(y);
 
     rocket.position.set(snappedX, snappedY, z);
     rocket.userData.truePos = { x: snappedX, y: snappedY };
@@ -60,13 +42,29 @@ export class Firework {
 
   public createExplosion(x: number, y: number, z: number) {
     const velocities = new Float32Array(Firework.PARTICLE_COUNT * 3);
-    const particleGroup = new THREE.Group();
+    const material = new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 1.0,
+    });
 
-    const snappedX = this.snapToGrid(x);
-    const snappedY = this.snapToGrid(y);
+    const instancedMesh = new THREE.InstancedMesh(
+      PIXEL_GEOMETRY,
+      material,
+      Firework.PARTICLE_COUNT
+    );
+    instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+    const snappedX = snapToGrid(x);
+    const snappedY = snapToGrid(y);
+
+    const truePositions = new Float32Array(Firework.PARTICLE_COUNT * 2);
+    const dummy = new THREE.Object3D();
+    dummy.position.set(snappedX, snappedY, z);
+    dummy.updateMatrix();
 
     for (let i = 0; i < Firework.PARTICLE_COUNT; i++) {
       const i3 = i * 3;
+      const i2 = i * 2;
       const angle = (Math.PI * 2 * i) / Firework.PARTICLE_COUNT;
       const radius = Math.random() * 0.5 + 0.5;
 
@@ -75,28 +73,25 @@ export class Firework {
       velocities[i3 + 1] = velocity.vy;
       velocities[i3 + 2] = 0;
 
-      const colorVariation = this.getColorVariation();
+      const colorVariation = getColorVariation();
       const pixelColor = new THREE.Color(
         this.baseColor.r * colorVariation,
         this.baseColor.g * colorVariation,
         this.baseColor.b * colorVariation
       );
 
-      const pixelMaterial = new THREE.MeshBasicMaterial({
-        color: pixelColor,
-        transparent: true,
-        opacity: 1.0,
-      });
+      instancedMesh.setColorAt(i, pixelColor);
+      instancedMesh.setMatrixAt(i, dummy.matrix);
 
-      const pixel = new THREE.Mesh(Firework.PIXEL_GEOMETRY, pixelMaterial);
-
-      pixel.position.set(snappedX, snappedY, z);
-      pixel.userData.truePos = { x: snappedX, y: snappedY };
-      pixel.userData.initialOpacity = 1.0;
-
-      particleGroup.add(pixel);
+      truePositions[i2] = snappedX;
+      truePositions[i2 + 1] = snappedY;
     }
+    instancedMesh.instanceColor!.needsUpdate = true;
 
-    return { group: particleGroup, velocities };
+    instancedMesh.userData.velocities = velocities;
+    instancedMesh.userData.truePos = truePositions;
+    instancedMesh.userData.alpha = 1.0;
+
+    return { group: instancedMesh };
   }
 }
