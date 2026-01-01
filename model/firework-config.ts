@@ -1,7 +1,11 @@
 import * as THREE from "three";
-import { pastelColor } from "./color-utils";
 
-export const GRID_SIZE = 0.2;
+function pastelColor(r: number, g: number, b: number): THREE.Color {
+  const pastelR = (r / 255) * 0.6 + 0.4;
+  const pastelG = (g / 255) * 0.6 + 0.4;
+  const pastelB = (b / 255) * 0.6 + 0.4;
+  return new THREE.Color(pastelR, pastelG, pastelB);
+}
 
 export interface FireworkConfig {
   name: string;
