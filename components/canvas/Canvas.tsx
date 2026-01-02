@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
+import Stats from "three/examples/jsm/libs/stats.module.js";
 import { Firework } from "@/model/firework";
 import { fireworkConfigs, FireworkType } from "@/model/firework-config";
 import { useFireworkStore } from "@/store/useFireworkStore";
@@ -14,6 +15,7 @@ import {
 import { MARKER_GEOMETRY } from "@/lib/three/assets";
 import { LaunchButton } from "./LaunchButton";
 import { MAX_MARKERS } from "@/lib/three/constants";
+import { TestModule } from "./TestModule";
 
 interface CanvasProps {
   selectedType: FireworkType;
@@ -35,6 +37,7 @@ export const Canvas = ({ selectedType }: CanvasProps) => {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const statsRef = useRef<Stats | null>(null);
 
   const rocketsRef = useRef<RocketItem[]>([]);
   const particlesRef = useRef<THREE.InstancedMesh[]>([]);
@@ -116,6 +119,13 @@ export const Canvas = ({ selectedType }: CanvasProps) => {
     };
 
     const handleClick = (event: MouseEvent) => {
+      // Prevent adding firework when clicking on stats or UI buttons
+      if (
+        (event.target as HTMLElement).closest("button") ||
+        (event.target as HTMLElement).closest("canvas") !== renderer.domElement
+      )
+        return;
+
       if (!rendererRef.current?.domElement || !cameraRef.current) return;
       const rect = rendererRef.current.domElement.getBoundingClientRect();
       const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -129,12 +139,16 @@ export const Canvas = ({ selectedType }: CanvasProps) => {
     };
 
     const animate = () => {
+      if (statsRef.current) statsRef.current.begin();
+
       animationFrameRef.current = requestAnimationFrame(animate);
       if (sceneRef.current && cameraRef.current && rendererRef.current) {
         updateRockets(rocketsRef, particlesRef, sceneRef.current);
         updateParticles(particlesRef, sceneRef.current);
         rendererRef.current.render(sceneRef.current, cameraRef.current);
       }
+
+      if (statsRef.current) statsRef.current.end();
     };
 
     window.addEventListener("resize", handleResize);
@@ -232,10 +246,14 @@ export const Canvas = ({ selectedType }: CanvasProps) => {
   return (
     <div className="h-full w-full relative bg-black overflow-hidden">
       <div ref={mountRef} className="h-full w-full" />
+
       <div className="absolute top-4 left-4 text-white text-sm pointer-events-none select-none z-10">
         화면을 클릭하여 불꽃놀이 위치 저장 (
         {fireworkConfigs[selectedType]?.name || selectedType})
       </div>
+
+      <TestModule mountRef={mountRef} statsRef={statsRef} />
+
       {savedFireworks.length > 0 && (
         <LaunchButton count={savedFireworks.length} onLaunch={handleLaunch} />
       )}
