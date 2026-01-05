@@ -40,7 +40,7 @@ export class Firework {
     return { rocket, velocity };
   }
 
-  public createExplosion(x: number, y: number, z: number) {
+  public createExplosionJs(x: number, y: number, z: number) {
     const velocities = new Float32Array(Firework.PARTICLE_COUNT * 3);
     const material = new THREE.MeshBasicMaterial({
       transparent: true,
@@ -68,6 +68,65 @@ export class Firework {
       const angle = (Math.PI * 2 * i) / Firework.PARTICLE_COUNT;
       const radius = Math.random() * 0.5 + 0.5;
 
+      const velocity = this.config.getVelocity(angle, radius, i);
+      velocities[i3] = velocity.vx;
+      velocities[i3 + 1] = velocity.vy;
+      velocities[i3 + 2] = 0;
+
+      const colorVariation = getColorVariation();
+      const pixelColor = new THREE.Color(
+        this.baseColor.r * colorVariation,
+        this.baseColor.g * colorVariation,
+        this.baseColor.b * colorVariation
+      );
+
+      instancedMesh.setColorAt(i, pixelColor);
+      instancedMesh.setMatrixAt(i, dummy.matrix);
+
+      truePositions[i2] = snappedX;
+      truePositions[i2 + 1] = snappedY;
+    }
+    instancedMesh.instanceColor!.needsUpdate = true;
+
+    instancedMesh.userData.velocities = velocities;
+    instancedMesh.userData.truePos = truePositions;
+    instancedMesh.userData.alpha = 1.0;
+
+    return { group: instancedMesh };
+  }
+
+  public createExplosionWasm(x: number, y: number, z: number) {
+    // TODO: WASM 함수로 속도 계산 최적화
+    // 현재는 JS 구현과 동일하게 작동 (나중에 WASM으로 최적화)
+    const velocities = new Float32Array(Firework.PARTICLE_COUNT * 3);
+    const material = new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 1.0,
+    });
+
+    const instancedMesh = new THREE.InstancedMesh(
+      PIXEL_GEOMETRY,
+      material,
+      Firework.PARTICLE_COUNT
+    );
+    instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+    const snappedX = snapToGrid(x);
+    const snappedY = snapToGrid(y);
+
+    const truePositions = new Float32Array(Firework.PARTICLE_COUNT * 2);
+    const dummy = new THREE.Object3D();
+    dummy.position.set(snappedX, snappedY, z);
+    dummy.updateMatrix();
+
+    for (let i = 0; i < Firework.PARTICLE_COUNT; i++) {
+      const i3 = i * 3;
+      const i2 = i * 2;
+      const angle = (Math.PI * 2 * i) / Firework.PARTICLE_COUNT;
+      const radius = Math.random() * 0.5 + 0.5;
+
+      // TODO: WASM 함수 호출로 교체
+      // const velocity = wasm.calculate_velocity(angle, radius, i, this.config);
       const velocity = this.config.getVelocity(angle, radius, i);
       velocities[i3] = velocity.vx;
       velocities[i3 + 1] = velocity.vy;

@@ -8,20 +8,26 @@ import { fireworkConfigs, FireworkType } from "@/model/firework-config";
 import { useFireworkStore } from "@/store/useFireworkStore";
 import { VIEW_SIZE } from "@/lib/three/constants";
 import {
-  updateRockets,
-  updateParticles,
+  updateRockets as updateRocketsJs,
+  updateParticles as updateParticlesJs,
   RocketItem,
-} from "@/lib/three/animation";
+} from "@/lib/three/animation-js";
+import {
+  updateRockets as updateRocketsWasm,
+  updateParticles as updateParticlesWasm,
+} from "@/lib/three/animation-wasm";
 import { MARKER_GEOMETRY } from "@/lib/three/assets";
 import { LaunchButton } from "./LaunchButton";
 import { MAX_MARKERS } from "@/lib/three/constants";
 import { TestModule } from "./TestModule";
+import { CanvasType } from "@/app/page";
 
 interface CanvasProps {
   selectedType: FireworkType;
+  canvasType: CanvasType;
 }
 
-export const Canvas = ({ selectedType }: CanvasProps) => {
+export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
   const { addFirework, savedFireworks } = useFireworkStore();
   const [launchTrigger, setLaunchTrigger] = useState(0);
 
@@ -143,8 +149,13 @@ export const Canvas = ({ selectedType }: CanvasProps) => {
 
       animationFrameRef.current = requestAnimationFrame(animate);
       if (sceneRef.current && cameraRef.current && rendererRef.current) {
-        updateRockets(rocketsRef, particlesRef, sceneRef.current);
-        updateParticles(particlesRef, sceneRef.current);
+        if (canvasType === "wasm") {
+          updateRocketsWasm(rocketsRef, particlesRef, sceneRef.current);
+          updateParticlesWasm(particlesRef, sceneRef.current);
+        } else {
+          updateRocketsJs(rocketsRef, particlesRef, sceneRef.current);
+          updateParticlesJs(particlesRef, sceneRef.current);
+        }
         rendererRef.current.render(sceneRef.current, cameraRef.current);
       }
 
@@ -190,7 +201,7 @@ export const Canvas = ({ selectedType }: CanvasProps) => {
       renderer.dispose();
       markerMaterial.dispose();
     };
-  }, [addFirework]);
+  }, [addFirework, canvasType]);
 
   useEffect(() => {
     if (launchTrigger > 0 && sceneRef.current) {

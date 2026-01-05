@@ -1,15 +1,12 @@
 import * as THREE from "three";
 import { Firework } from "@/model/firework";
-import { fireworkConfigs, FireworkType } from "@/model/firework-config";
+import { fireworkConfigs } from "@/model/firework-config";
 import { GRAVITY, ALPHA_DECAY, ALPHA_THRESHOLD } from "./constants";
 import { snapToGrid } from "@/lib/utils";
+import { RocketItem } from "./animation-js";
 
-export interface RocketItem {
-  rocket: THREE.Mesh;
-  velocity: { vx: number; vy: number; vz: number };
-  type: FireworkType;
-  launchY: number;
-}
+// TODO: WASM 모듈 import
+// import * as wasm from "wasm-lib";
 
 const dummy = new THREE.Object3D();
 
@@ -18,6 +15,8 @@ export const updateRockets = (
   particlesRef: { current: THREE.InstancedMesh[] },
   scene: THREE.Scene
 ) => {
+  // TODO: WASM 함수로 교체
+  // 현재는 JS 구현과 동일하게 작동 (나중에 WASM으로 최적화)
   for (let i = rocketsRef.current.length - 1; i >= 0; i--) {
     const item = rocketsRef.current[i];
 
@@ -33,7 +32,7 @@ export const updateRockets = (
 
     if (item.rocket.userData.truePos.y >= targetHeight) {
       const fireworkModel = new Firework(fireworkConfigs[item.type]);
-      const { group } = fireworkModel.createExplosion(
+      const { group } = fireworkModel.createExplosionWasm(
         item.rocket.position.x,
         item.rocket.position.y,
         0
@@ -55,6 +54,8 @@ export const updateParticles = (
   particlesRef: { current: THREE.InstancedMesh[] },
   scene: THREE.Scene
 ) => {
+  // TODO: WASM 함수로 교체
+  // 현재는 JS 구현과 동일하게 작동 (나중에 WASM으로 최적화)
   for (let i = particlesRef.current.length - 1; i >= 0; i--) {
     const mesh = particlesRef.current[i];
     const velocities = mesh.userData.velocities as Float32Array;
