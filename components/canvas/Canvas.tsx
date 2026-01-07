@@ -21,6 +21,7 @@ import { LaunchButton } from "./LaunchButton";
 import { MAX_MARKERS } from "@/lib/three/constants";
 import { TestModule } from "./TestModule";
 import { CanvasType } from "@/app/page";
+import * as wasm from "wasm-lib";
 
 interface CanvasProps {
   selectedType: FireworkType;
@@ -53,6 +54,14 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
   useEffect(() => {
     selectedTypeRef.current = selectedType;
   }, [selectedType]);
+
+  useEffect(() => {
+    if (canvasType === "wasm") {
+      wasm.default().then(() => {
+        wasm.init();
+      });
+    }
+  }, [canvasType]);
 
   useEffect(() => {
     if (!mountRef.current) return;

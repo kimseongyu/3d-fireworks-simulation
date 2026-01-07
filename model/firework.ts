@@ -1,7 +1,8 @@
 import * as THREE from "three";
-import { FireworkConfig } from "./firework-config";
+import { FireworkConfig, fireworkConfigs } from "./firework-config";
 import { PIXEL_GEOMETRY, ROCKET_GEOMETRY } from "@/lib/three/assets";
 import { snapToGrid, getColorVariation } from "@/lib/utils";
+import * as wasm from "wasm-lib";
 
 export class Firework {
   private static readonly PARTICLE_COUNT = 500;
@@ -96,9 +97,13 @@ export class Firework {
   }
 
   public createExplosionWasm(x: number, y: number, z: number) {
-    // TODO: WASM 함수로 속도 계산 최적화
-    // 현재는 JS 구현과 동일하게 작동 (나중에 WASM으로 최적화)
-    const velocities = new Float32Array(Firework.PARTICLE_COUNT * 3);
+    const wasmType = Object.keys(fireworkConfigs).indexOf(this.config.name);
+
+    const velocities = wasm.calculate_explosion_velocities(
+      wasmType,
+      Firework.PARTICLE_COUNT
+    );
+
     const material = new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 1.0,
@@ -120,17 +125,7 @@ export class Firework {
     dummy.updateMatrix();
 
     for (let i = 0; i < Firework.PARTICLE_COUNT; i++) {
-      const i3 = i * 3;
       const i2 = i * 2;
-      const angle = (Math.PI * 2 * i) / Firework.PARTICLE_COUNT;
-      const radius = Math.random() * 0.5 + 0.5;
-
-      // TODO: WASM 함수 호출로 교체
-      // const velocity = wasm.calculate_velocity(angle, radius, i, this.config);
-      const velocity = this.config.getVelocity(angle, radius, i);
-      velocities[i3] = velocity.vx;
-      velocities[i3 + 1] = velocity.vy;
-      velocities[i3 + 2] = 0;
 
       const colorVariation = getColorVariation();
       const pixelColor = new THREE.Color(
