@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build:wasm": "cd wasm-lib && wasm-pack build --target web",
-    "build": "npm run build:wasm && next build",
+    "build": "npm run build:wasm --webpack && next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },
