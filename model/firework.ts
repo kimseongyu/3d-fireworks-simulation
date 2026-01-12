@@ -30,13 +30,13 @@ export class Firework {
     const snappedY = snapToGrid(y);
 
     rocket.position.set(snappedX, snappedY, z);
-    rocket.userData.truePos = { x: snappedX, y: snappedY };
+    rocket.userData.truePos = { x: snappedX, y: snappedY, z };
     rocket.frustumCulled = false;
 
     const velocity = {
       vx: (Math.random() - 0.5) * 0.1,
-      vy: 0.5 + Math.random() * 0.2,
-      vz: 0,
+      vy: (Math.random() - 0.5) * 0.1,
+      vz: 0.5 + Math.random() * 0.2,
     };
 
     return { rocket, velocity };
@@ -60,21 +60,30 @@ export class Firework {
     const snappedX = snapToGrid(x);
     const snappedY = snapToGrid(y);
 
-    const truePositions = new Float32Array(Firework.PARTICLE_COUNT * 2);
+    const truePositions = new Float32Array(Firework.PARTICLE_COUNT * 3);
     const dummy = new THREE.Object3D();
     dummy.position.set(snappedX, snappedY, z);
     dummy.updateMatrix();
 
     for (let i = 0; i < Firework.PARTICLE_COUNT; i++) {
       const i3 = i * 3;
-      const i2 = i * 2;
-      const angle = (Math.PI * 2 * i) / Firework.PARTICLE_COUNT;
+
+      const u = Math.random();
+      const v = Math.random();
+      const phi = Math.acos(2 * u - 1);
+      const theta = 2 * Math.PI * v;
+
+      const dirX = Math.sin(phi) * Math.cos(theta);
+      const dirY = Math.sin(phi) * Math.sin(theta);
+      const dirZ = Math.cos(phi);
+
+      const dir = new THREE.Vector3(dirX, dirY, dirZ);
       const radius = Math.random() * 0.5 + 0.5;
 
-      const velocity = this.config.getVelocity(angle, radius, i);
+      const velocity = this.config.getVelocity(dir, radius);
       velocities[i3] = velocity.vx;
       velocities[i3 + 1] = velocity.vy;
-      velocities[i3 + 2] = 0;
+      velocities[i3 + 2] = velocity.vz;
 
       const colorVariation = getColorVariation();
       const pixelColor = new THREE.Color(
@@ -86,8 +95,9 @@ export class Firework {
       instancedMesh.setColorAt(i, pixelColor);
       instancedMesh.setMatrixAt(i, dummy.matrix);
 
-      truePositions[i2] = snappedX;
-      truePositions[i2 + 1] = snappedY;
+      truePositions[i3] = snappedX;
+      truePositions[i3 + 1] = snappedY;
+      truePositions[i3 + 2] = z;
     }
     instancedMesh.instanceColor!.needsUpdate = true;
 
@@ -101,10 +111,17 @@ export class Firework {
   public createExplosionWasm(x: number, y: number, z: number) {
     const wasmType = Object.keys(fireworkConfigs).indexOf(this.config.name);
 
-    const velocities = wasm.calculate_explosion_velocities(
+    const wasmVelocities = wasm.calculate_explosion_velocities(
       wasmType,
       Firework.PARTICLE_COUNT
     );
+
+    const velocities = new Float32Array(Firework.PARTICLE_COUNT * 3);
+    for (let i = 0; i < Firework.PARTICLE_COUNT; i++) {
+      velocities[i * 3] = wasmVelocities[i * 2];
+      velocities[i * 3 + 1] = wasmVelocities[i * 2 + 1];
+      velocities[i * 3 + 2] = 0; // Default Z velocity for WASM (until updated)
+    }
 
     const material = new THREE.MeshBasicMaterial({
       transparent: true,
@@ -122,13 +139,13 @@ export class Firework {
     const snappedX = snapToGrid(x);
     const snappedY = snapToGrid(y);
 
-    const truePositions = new Float32Array(Firework.PARTICLE_COUNT * 2);
+    const truePositions = new Float32Array(Firework.PARTICLE_COUNT * 3);
     const dummy = new THREE.Object3D();
     dummy.position.set(snappedX, snappedY, z);
     dummy.updateMatrix();
 
     for (let i = 0; i < Firework.PARTICLE_COUNT; i++) {
-      const i2 = i * 2;
+      const i3 = i * 3;
 
       const colorVariation = getColorVariation();
       const pixelColor = new THREE.Color(
@@ -140,8 +157,9 @@ export class Firework {
       instancedMesh.setColorAt(i, pixelColor);
       instancedMesh.setMatrixAt(i, dummy.matrix);
 
-      truePositions[i2] = snappedX;
-      truePositions[i2 + 1] = snappedY;
+      truePositions[i3] = snappedX;
+      truePositions[i3 + 1] = snappedY;
+      truePositions[i3 + 2] = z;
     }
     instancedMesh.instanceColor!.needsUpdate = true;
 

@@ -27,16 +27,16 @@ export const updateRockets = (
 
     item.rocket.position.x = snapToGrid(item.rocket.userData.truePos.x);
     item.rocket.position.y = snapToGrid(item.rocket.userData.truePos.y);
-    item.rocket.position.z = 0;
+    item.rocket.position.z = snapToGrid(item.rocket.userData.truePos.z);
 
-    const targetHeight = item.launchY + Firework.EXPLOSION_HEIGHT;
+    const targetHeight = Firework.EXPLOSION_HEIGHT;
 
-    if (item.rocket.userData.truePos.y >= targetHeight) {
+    if (item.rocket.userData.truePos.z >= targetHeight) {
       const fireworkModel = new Firework(fireworkConfigs[item.type]);
       const { group } = fireworkModel.createExplosionJs(
         item.rocket.position.x,
         item.rocket.position.y,
-        0
+        item.rocket.position.z
       );
 
       scene.add(group);
@@ -73,18 +73,20 @@ export const updateParticles = (
     }
 
     for (let j = 0; j < mesh.count; j++) {
-      const j3 = j * 3;
-      const j2 = j * 2;
+      const vIdx = j * 3;
+      const pIdx = j * 3;
 
-      velocities[j3 + 1] -= GRAVITY;
+      velocities[vIdx + 2] -= GRAVITY;
 
-      truePositions[j2] += velocities[j3];
-      truePositions[j2 + 1] += velocities[j3 + 1];
+      truePositions[pIdx] += velocities[vIdx];
+      truePositions[pIdx + 1] += velocities[vIdx + 1];
+      truePositions[pIdx + 2] += velocities[vIdx + 2];
 
-      const snappedX = snapToGrid(truePositions[j2]);
-      const snappedY = snapToGrid(truePositions[j2 + 1]);
+      const snappedX = snapToGrid(truePositions[pIdx]);
+      const snappedY = snapToGrid(truePositions[pIdx + 1]);
+      const snappedZ = snapToGrid(truePositions[pIdx + 2]);
 
-      dummy.position.set(snappedX, snappedY, 0);
+      dummy.position.set(snappedX, snappedY, snappedZ);
       dummy.updateMatrix();
       mesh.setMatrixAt(j, dummy.matrix);
     }
