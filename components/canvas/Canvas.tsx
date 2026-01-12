@@ -7,7 +7,6 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Firework } from "@/model/firework";
 import { fireworkConfigs, FireworkType } from "@/model/firework-config";
 import { useFireworkStore } from "@/store/useFireworkStore";
-import { VIEW_SIZE } from "@/lib/three/constants";
 import {
   updateRockets as updateRocketsJs,
   updateParticles as updateParticlesJs,
@@ -43,7 +42,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
   const animationFrameRef = useRef<number | null>(null);
 
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const statsRef = useRef<Stats | null>(null);
 
@@ -74,22 +73,14 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
     // 1. Scene
     const scene = new THREE.Scene();
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    directionalLight.position.set(10, 20, 10);
+    directionalLight.position.set(10, -20, 50);
     scene.add(directionalLight);
     sceneRef.current = scene;
 
-    // 2. Camera
+    // 2. Camera - Changed to PerspectiveCamera
     const aspect = width / height;
-    const camera = new THREE.OrthographicCamera(
-      -VIEW_SIZE * aspect,
-      VIEW_SIZE * aspect,
-      VIEW_SIZE,
-      -VIEW_SIZE,
-      0.1,
-      1000
-    );
-    camera.position.set(0, 0, 50);
-    camera.lookAt(0, 0, 0);
+    const camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 2000);
+    camera.position.set(0, -80, 40);
     cameraRef.current = camera;
 
     // 3. Renderer
@@ -106,10 +97,12 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
 
     // 4. OrbitControls
     const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0, 20);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.minZoom = 0.5;
-    controls.maxZoom = 2.0;
+    controls.minDistance = 10;
+    controls.maxDistance = 500;
+    controls.update();
 
     // 5. Markers InstancedMesh
     const markerMaterial = new THREE.MeshBasicMaterial({
@@ -133,11 +126,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
       const w = mountRef.current.clientWidth;
       const h = mountRef.current.clientHeight;
 
-      const aspect = w / h;
-      cameraRef.current.left = -VIEW_SIZE * aspect;
-      cameraRef.current.right = VIEW_SIZE * aspect;
-      cameraRef.current.top = VIEW_SIZE;
-      cameraRef.current.bottom = -VIEW_SIZE;
+      cameraRef.current.aspect = w / h;
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(w, h);
     };
