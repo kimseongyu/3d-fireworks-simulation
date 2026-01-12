@@ -116,13 +116,6 @@ export class Firework {
       Firework.PARTICLE_COUNT
     );
 
-    const velocities = new Float32Array(Firework.PARTICLE_COUNT * 3);
-    for (let i = 0; i < Firework.PARTICLE_COUNT; i++) {
-      velocities[i * 3] = wasmVelocities[i * 2];
-      velocities[i * 3 + 1] = wasmVelocities[i * 2 + 1];
-      velocities[i * 3 + 2] = 0; // Default Z velocity for WASM (until updated)
-    }
-
     const material = new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 1.0,
@@ -163,7 +156,7 @@ export class Firework {
     }
     instancedMesh.instanceColor!.needsUpdate = true;
 
-    instancedMesh.userData.velocities = velocities;
+    instancedMesh.userData.velocities = wasmVelocities;
     instancedMesh.userData.truePos = truePositions;
     instancedMesh.userData.alpha = 1.0;
 

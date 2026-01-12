@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { Firework } from "@/model/firework";
 import { fireworkConfigs } from "@/model/firework-config";
-import { ALPHA_THRESHOLD } from "./constants";
+import { ALPHA_DECAY, ALPHA_THRESHOLD } from "./constants";
 import { RocketItem } from "./animation-js";
 import * as wasm from "wasm-lib";
 
@@ -31,7 +31,7 @@ export const updateRockets = (
     velocities[i3 + 2] = item.velocity.vz;
   }
 
-  const snappedPositions = wasm.update_rocket_positions(
+  const results = wasm.update_rocket_positions(
     truePositions,
     velocities,
     rocketCount
@@ -39,23 +39,24 @@ export const updateRockets = (
 
   for (let i = rocketsRef.current.length - 1; i >= 0; i--) {
     const item = rocketsRef.current[i];
-    const i3 = i * 3;
+    const i6 = i * 6;
 
-    item.rocket.userData.truePos.x = truePositions[i3];
-    item.rocket.userData.truePos.y = truePositions[i3 + 1];
-    item.rocket.userData.truePos.z = truePositions[i3 + 2];
+    item.rocket.userData.truePos.x = results[i6];
+    item.rocket.userData.truePos.y = results[i6 + 1];
+    item.rocket.userData.truePos.z = results[i6 + 2];
 
-    item.rocket.position.x = snappedPositions[i3];
-    item.rocket.position.y = snappedPositions[i3 + 1];
-    item.rocket.position.z = snappedPositions[i3 + 2];
+    item.rocket.position.x = results[i6 + 3];
+    item.rocket.position.y = results[i6 + 4];
+    item.rocket.position.z = results[i6 + 5];
 
-    const targetHeight = item.launchY + Firework.EXPLOSION_HEIGHT;
-    if (item.rocket.userData.truePos.y >= targetHeight) {
+    const targetHeight = Firework.EXPLOSION_HEIGHT;
+
+    if (item.rocket.userData.truePos.z >= targetHeight) {
       const fireworkModel = new Firework(fireworkConfigs[item.type]);
       const { group } = fireworkModel.createExplosionWasm(
         item.rocket.position.x,
         item.rocket.position.y,
-        0
+        item.rocket.position.z
       );
 
       scene.add(group);
@@ -80,17 +81,10 @@ export const updateParticles = (
     const truePositions = mesh.userData.truePos as Float32Array;
     const particleCount = mesh.count;
 
-    const newAlpha = wasm.update_particles(
-      velocities,
-      truePositions,
-      mesh.userData.alpha,
-      particleCount
-    );
+    mesh.userData.alpha *= ALPHA_DECAY;
+    (mesh.material as THREE.MeshBasicMaterial).opacity = mesh.userData.alpha;
 
-    mesh.userData.alpha = newAlpha;
-    (mesh.material as THREE.MeshBasicMaterial).opacity = newAlpha;
-
-    if (newAlpha < ALPHA_THRESHOLD) {
+    if (mesh.userData.alpha < ALPHA_THRESHOLD) {
       scene.remove(mesh);
       if (mesh.material instanceof THREE.Material) {
         mesh.material.dispose();
@@ -99,17 +93,37 @@ export const updateParticles = (
       continue;
     }
 
+    const results = wasm.update_particles(
+      velocities,
+      truePositions,
+      particleCount
+    );
+
+    for (let j = 0; j < particleCount; j++) {
+      const j6 = j * 6;
+      const j3 = j * 3;
+
+      velocities[j3] = results[j6];
+      velocities[j3 + 1] = results[j6 + 1];
+      velocities[j3 + 2] = results[j6 + 2];
+
+      truePositions[j3] = results[j6 + 3];
+      truePositions[j3 + 1] = results[j6 + 4];
+      truePositions[j3 + 2] = results[j6 + 5];
+    }
+
     const snappedPositions = wasm.snap_particle_positions(
       truePositions,
       particleCount
     );
 
     for (let j = 0; j < particleCount; j++) {
-      const j2 = j * 2;
-      const snappedX = snappedPositions[j2];
-      const snappedY = snappedPositions[j2 + 1];
+      const j3 = j * 3;
+      const snappedX = snappedPositions[j3];
+      const snappedY = snappedPositions[j3 + 1];
+      const snappedZ = snappedPositions[j3 + 2];
 
-      dummy.position.set(snappedX, snappedY, 0);
+      dummy.position.set(snappedX, snappedY, snappedZ);
       dummy.updateMatrix();
       mesh.setMatrixAt(j, dummy.matrix);
     }
