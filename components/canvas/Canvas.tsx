@@ -72,9 +72,12 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
 
     // 1. Scene
     const scene = new THREE.Scene();
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    directionalLight.position.set(10, -20, 50);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    directionalLight.position.set(20, -40, 60);
     scene.add(directionalLight);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
     sceneRef.current = scene;
 
     // 2. Camera - Changed to PerspectiveCamera
@@ -105,9 +108,9 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
     controls.update();
 
     // 5. Markers InstancedMesh
-    const markerMaterial = new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0.8,
+    const markerMaterial = new THREE.MeshStandardMaterial({
+      roughness: 0.7,
+      metalness: 0.3,
     });
     const markerMesh = new THREE.InstancedMesh(
       MARKER_GEOMETRY,
@@ -180,6 +183,13 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
           updateRocketsJs(rocketsRef, particlesRef, sceneRef.current);
           updateParticlesJs(particlesRef, sceneRef.current);
         }
+
+        if (markerMeshRef.current) {
+          const isSimulationActive =
+            rocketsRef.current.length > 0 || particlesRef.current.length > 0;
+          markerMeshRef.current.visible = !isSimulationActive;
+        }
+
         rendererRef.current.render(sceneRef.current, cameraRef.current);
       }
 
@@ -270,7 +280,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
         markerMesh.setColorAt(i, config.baseColor);
       }
 
-      dummy.position.set(firework.x, firework.y, 0.1);
+      dummy.position.set(firework.x, firework.y, 0.3);
       dummy.updateMatrix();
       markerMesh.setMatrixAt(i, dummy.matrix);
     });
