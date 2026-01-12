@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 import Stats from "three/examples/jsm/libs/stats.module.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Firework } from "@/model/firework";
 import { fireworkConfigs, FireworkType } from "@/model/firework-config";
 import { useFireworkStore } from "@/store/useFireworkStore";
@@ -103,7 +104,14 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
 
     mountElement.appendChild(renderer.domElement);
 
-    // 4. Markers InstancedMesh
+    // 4. OrbitControls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minZoom = 0.5;
+    controls.maxZoom = 2.0;
+
+    // 5. Markers InstancedMesh
     const markerMaterial = new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0.8,
@@ -114,10 +122,11 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
       MAX_MARKERS
     );
     markerMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    markerMesh.frustumCulled = false;
     scene.add(markerMesh);
     markerMeshRef.current = markerMesh;
 
-    // 5. Event Handlers & Animation Loop
+    // 6. Event Handlers & Animation Loop
     const handleResize = () => {
       if (!mountRef.current || !cameraRef.current || !rendererRef.current)
         return;
@@ -133,30 +142,47 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
       rendererRef.current.setSize(w, h);
     };
 
+    let mouseDownPos = { x: 0, y: 0 };
+    const handleMouseDown = (event: MouseEvent) => {
+      mouseDownPos = { x: event.clientX, y: event.clientY };
+    };
+
     const handleClick = (event: MouseEvent) => {
-      // Prevent adding firework when clicking on stats or UI buttons
       if (
         (event.target as HTMLElement).closest("button") ||
         (event.target as HTMLElement).closest("canvas") !== renderer.domElement
       )
         return;
 
+      const dx = event.clientX - mouseDownPos.x;
+      const dy = event.clientY - mouseDownPos.y;
+      if (Math.hypot(dx, dy) > 5) return;
+
       if (!rendererRef.current?.domElement || !cameraRef.current) return;
       const rect = rendererRef.current.domElement.getBoundingClientRect();
       const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       const mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-      const cam = cameraRef.current;
-      const worldX = mouseX * (cam.right - cam.left) * 0.5;
-      const worldY = mouseY * (cam.top - cam.bottom) * 0.5;
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(
+        new THREE.Vector2(mouseX, mouseY),
+        cameraRef.current
+      );
+      const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+      const target = new THREE.Vector3();
+      const intersection = raycaster.ray.intersectPlane(plane, target);
 
-      addFirework(selectedTypeRef.current, worldX, worldY);
+      if (intersection) {
+        addFirework(selectedTypeRef.current, target.x, target.y);
+      }
     };
 
     const animate = () => {
       if (statsRef.current) statsRef.current.begin();
 
       animationFrameRef.current = requestAnimationFrame(animate);
+      controls.update();
+
       if (sceneRef.current && cameraRef.current && rendererRef.current) {
         if (canvasType === "wasm") {
           updateRocketsWasm(rocketsRef, particlesRef, sceneRef.current);
@@ -172,16 +198,20 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
     };
 
     window.addEventListener("resize", handleResize);
+    renderer.domElement.addEventListener("mousedown", handleMouseDown);
     renderer.domElement.addEventListener("click", handleClick);
     animate();
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      renderer.domElement.removeEventListener("mousedown", handleMouseDown);
       renderer.domElement.removeEventListener("click", handleClick);
 
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+
+      controls.dispose();
 
       // Dispose Three.js objects
       if (sceneRef.current) {

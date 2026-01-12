@@ -31,6 +31,7 @@ export class Firework {
 
     rocket.position.set(snappedX, snappedY, z);
     rocket.userData.truePos = { x: snappedX, y: snappedY };
+    rocket.frustumCulled = false;
 
     const velocity = {
       vx: (Math.random() - 0.5) * 0.1,
@@ -54,6 +55,7 @@ export class Firework {
       Firework.PARTICLE_COUNT
     );
     instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    instancedMesh.frustumCulled = false;
 
     const snappedX = snapToGrid(x);
     const snappedY = snapToGrid(y);
@@ -115,6 +117,7 @@ export class Firework {
       Firework.PARTICLE_COUNT
     );
     instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    instancedMesh.frustumCulled = false;
 
     const snappedX = snapToGrid(x);
     const snappedY = snapToGrid(y);
