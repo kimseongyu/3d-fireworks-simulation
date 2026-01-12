@@ -290,7 +290,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
     if (markerMesh.instanceColor) {
       markerMesh.instanceColor.needsUpdate = true;
     }
-  }, [savedFireworks]);
+  }, [savedFireworks, canvasType]);
 
   return (
     <div className="h-full w-full relative bg-black overflow-hidden">
