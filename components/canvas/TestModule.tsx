@@ -17,16 +17,15 @@ export const TestModule = ({ mountRef, statsRef }: TestModuleProps) => {
 
   const handleStressTest = (count: number) => {
     if (!mountRef.current) return;
-    const width = mountRef.current.clientWidth;
-    const height = mountRef.current.clientHeight;
-    const aspect = width / height;
 
-    const xRange = VIEW_SIZE * aspect * 0.9;
-    const yRange = VIEW_SIZE * 0.9;
+    const maxRadius = VIEW_SIZE * 5;
 
     for (let i = 0; i < count; i++) {
-      const x = (Math.random() * 2 - 1) * xRange;
-      const y = (Math.random() * 2 - 1) * yRange;
+      const r = Math.sqrt(Math.random()) * maxRadius;
+      const theta = Math.random() * Math.PI * 2;
+
+      const x = r * Math.cos(theta);
+      const y = r * Math.sin(theta);
 
       const types = Object.keys(fireworkConfigs) as FireworkType[];
       const randomType = types[Math.floor(Math.random() * types.length)];
@@ -96,6 +95,12 @@ export const TestModule = ({ mountRef, statsRef }: TestModuleProps) => {
               className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               +1000
+            </button>
+            <button
+              onClick={() => handleStressTest(10)}
+              className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs rounded transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              +10
             </button>
             <button
               onClick={clearAll}
