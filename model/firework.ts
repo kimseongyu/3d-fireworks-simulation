@@ -109,7 +109,9 @@ export class Firework {
   }
 
   public createExplosionWasm(x: number, y: number, z: number) {
-    const wasmType = Object.keys(fireworkConfigs).indexOf(this.config.name);
+    const wasmType = Object.values(fireworkConfigs).indexOf(
+      this.config as (typeof fireworkConfigs)[keyof typeof fireworkConfigs]
+    );
 
     const wasmVelocities = wasm.calculate_explosion_velocities(
       wasmType,
