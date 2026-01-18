@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { Firework } from "@/model/firework";
 import { fireworkConfigs, FireworkType } from "@/model/firework-config";
 import { useFireworkStore } from "@/store/useFireworkStore";
@@ -44,6 +47,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const composerRef = useRef<EffectComposer | null>(null);
   const statsRef = useRef<Stats | null>(null);
 
   const rocketsRef = useRef<RocketItem[]>([]);
@@ -80,6 +84,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
+    scene.background = new THREE.Color(0x000000);
     sceneRef.current = scene;
 
     // Create stars background
@@ -150,6 +155,23 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
 
     mountElement.appendChild(renderer.domElement);
 
+    // Post-processing (Bloom effect)
+    const renderScene = new RenderPass(scene, camera);
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(width, height),
+      1.5,
+      0.4,
+      0.85
+    );
+    bloomPass.threshold = 0;
+    bloomPass.strength = 1.0;
+    bloomPass.radius = 0.5;
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(renderScene);
+    composer.addPass(bloomPass);
+    composerRef.current = composer;
+
     // 4. OrbitControls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 0, 20);
@@ -192,6 +214,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
       cameraRef.current.aspect = w / h;
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(w, h);
+      composerRef.current?.setSize(w, h);
     };
 
     let mouseDownPos = { x: 0, y: 0 };
@@ -250,7 +273,11 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
           markerMeshRef.current.visible = !isSimulationActive;
         }
 
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
+        if (composerRef.current) {
+          composerRef.current.render();
+        } else {
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
+        }
       }
 
       if (statsRef.current) statsRef.current.end();
@@ -271,6 +298,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
       }
 
       controls.dispose();
+      composerRef.current?.dispose();
 
       // Dispose Three.js objects
       if (sceneRef.current) {
