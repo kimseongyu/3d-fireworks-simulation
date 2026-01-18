@@ -50,6 +50,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
   const particlesRef = useRef<THREE.InstancedMesh[]>([]);
   const markerMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const starsRef = useRef<THREE.Points | null>(null);
+  const gridHelperRef = useRef<THREE.GridHelper | null>(null);
 
   const selectedTypeRef = useRef(selectedType);
   useEffect(() => {
@@ -90,7 +91,6 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
     for (let i = 0; i < starsCount; i++) {
       const i3 = i * 3;
       
-      // Random position in a large sphere
       const radius = 500 + Math.random() * 500;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 2 - 1);
@@ -99,7 +99,6 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
       starsPositions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
       starsPositions[i3 + 2] = radius * Math.cos(phi);
       
-      // Random star color (white to slightly blue/white)
       const brightness = 0.5 + Math.random() * 0.5;
       starsColors[i3] = brightness;
       starsColors[i3 + 1] = brightness;
@@ -126,10 +125,17 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
     scene.add(stars);
     starsRef.current = stars;
 
+    // Add Floor Grid
+    const gridHelper = new THREE.GridHelper(1000, 50, 0x444444, 0x222222);
+    gridHelper.rotation.x = Math.PI / 2;
+    scene.add(gridHelper);
+    gridHelperRef.current = gridHelper;
+
     // 2. Camera - Changed to PerspectiveCamera
     const aspect = width / height;
     const camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 2000);
     camera.position.set(0, -80, 40);
+    camera.up.set(0, 0, 1);
     cameraRef.current = camera;
 
     // 3. Renderer
@@ -147,10 +153,18 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
     // 4. OrbitControls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 0, 20);
+    controls.enableRotate = true;
+    controls.enablePan = true;
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.minDistance = 10;
     controls.maxDistance = 500;
+    controls.maxPolarAngle = Math.PI / 2 - 0.05;
+    controls.mouseButtons = {
+      LEFT: THREE.MOUSE.ROTATE,
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.PAN,
+    };
     controls.update();
 
     // 5. Markers InstancedMesh
@@ -282,6 +296,13 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
             starsRef.current.material.dispose();
           }
         }
+        if (gridHelperRef.current) {
+          sceneRef.current.remove(gridHelperRef.current);
+          gridHelperRef.current.geometry.dispose();
+          if (gridHelperRef.current.material instanceof THREE.Material) {
+            gridHelperRef.current.material.dispose();
+          }
+        }
       }
       rocketsRef.current = [];
       particlesRef.current = [];
@@ -349,9 +370,14 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
     <div className="h-full w-full relative bg-black overflow-hidden">
       <div ref={mountRef} className="h-full w-full" />
 
-      <div className="absolute top-4 left-4 text-white text-sm pointer-events-none select-none z-10">
-        화면을 클릭하여 불꽃놀이 위치 저장 (
-        {fireworkConfigs[selectedType]?.name || selectedType})
+      <div className="absolute top-4 left-4 text-white text-sm pointer-events-none select-none z-10 flex flex-col gap-1">
+        <div>
+          화면을 클릭하여 불꽃놀이 위치 저장 (
+          {fireworkConfigs[selectedType]?.name || selectedType})
+        </div>
+        <div className="text-xs text-gray-400">
+          좌클릭 드래그: 회전 | 우클릭 드래그: 이동 | 휠: 줌
+        </div>
       </div>
 
       <TestModule mountRef={mountRef} statsRef={statsRef} />
