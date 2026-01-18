@@ -49,6 +49,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
   const rocketsRef = useRef<RocketItem[]>([]);
   const particlesRef = useRef<THREE.InstancedMesh[]>([]);
   const markerMeshRef = useRef<THREE.InstancedMesh | null>(null);
+  const starsRef = useRef<THREE.Points | null>(null);
 
   const selectedTypeRef = useRef(selectedType);
   useEffect(() => {
@@ -79,6 +80,51 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
     sceneRef.current = scene;
+
+    // Create stars background
+    const starsGeometry = new THREE.BufferGeometry();
+    const starsCount = 5000;
+    const starsPositions = new Float32Array(starsCount * 3);
+    const starsColors = new Float32Array(starsCount * 3);
+
+    for (let i = 0; i < starsCount; i++) {
+      const i3 = i * 3;
+      
+      // Random position in a large sphere
+      const radius = 500 + Math.random() * 500;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(Math.random() * 2 - 1);
+      
+      starsPositions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+      starsPositions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+      starsPositions[i3 + 2] = radius * Math.cos(phi);
+      
+      // Random star color (white to slightly blue/white)
+      const brightness = 0.5 + Math.random() * 0.5;
+      starsColors[i3] = brightness;
+      starsColors[i3 + 1] = brightness;
+      starsColors[i3 + 2] = brightness + Math.random() * 0.2;
+    }
+
+    starsGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(starsPositions, 3)
+    );
+    starsGeometry.setAttribute(
+      "color",
+      new THREE.BufferAttribute(starsColors, 3)
+    );
+
+    const starsMaterial = new THREE.PointsMaterial({
+      size: 2,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+    });
+
+    const stars = new THREE.Points(starsGeometry, starsMaterial);
+    scene.add(stars);
+    starsRef.current = stars;
 
     // 2. Camera - Changed to PerspectiveCamera
     const aspect = width / height;
@@ -228,6 +274,13 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
         });
         if (markerMeshRef.current) {
           sceneRef.current.remove(markerMeshRef.current);
+        }
+        if (starsRef.current) {
+          sceneRef.current.remove(starsRef.current);
+          starsRef.current.geometry.dispose();
+          if (starsRef.current.material instanceof THREE.Material) {
+            starsRef.current.material.dispose();
+          }
         }
       }
       rocketsRef.current = [];
