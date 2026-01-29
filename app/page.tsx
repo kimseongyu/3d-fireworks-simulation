@@ -10,7 +10,7 @@ export type CanvasType = "js" | "wasm";
 export default function Home() {
   const [canvasType, setCanvasType] = useState<CanvasType>("js");
   const [selectedType, setSelectedType] = useState<FireworkType>(
-    getDefaultFireworkType()
+    getDefaultFireworkType(),
   );
 
   return (

@@ -10,7 +10,8 @@ const dummy = new THREE.Object3D();
 export const updateRockets = (
   rocketsRef: { current: RocketItem[] },
   particlesRef: { current: THREE.InstancedMesh[] },
-  scene: THREE.Scene
+  scene: THREE.Scene,
+  delta: number,
 ) => {
   if (rocketsRef.current.length === 0) return;
 
@@ -34,7 +35,8 @@ export const updateRockets = (
   const results = wasm.update_rocket_positions(
     truePositions,
     velocities,
-    rocketCount
+    rocketCount,
+    delta,
   );
 
   for (let i = rocketsRef.current.length - 1; i >= 0; i--) {
@@ -56,7 +58,7 @@ export const updateRockets = (
       const { group } = fireworkModel.createExplosionWasm(
         item.rocket.position.x,
         item.rocket.position.y,
-        item.rocket.position.z
+        item.rocket.position.z,
       );
 
       scene.add(group);
@@ -73,7 +75,8 @@ export const updateRockets = (
 
 export const updateParticles = (
   particlesRef: { current: THREE.InstancedMesh[] },
-  scene: THREE.Scene
+  scene: THREE.Scene,
+  delta: number,
 ) => {
   for (let i = particlesRef.current.length - 1; i >= 0; i--) {
     const mesh = particlesRef.current[i];
@@ -81,7 +84,7 @@ export const updateParticles = (
     const truePositions = mesh.userData.truePos as Float32Array;
     const particleCount = mesh.count;
 
-    mesh.userData.alpha *= ALPHA_DECAY;
+    mesh.userData.alpha *= Math.pow(ALPHA_DECAY, delta);
     (mesh.material as THREE.MeshBasicMaterial).opacity = mesh.userData.alpha;
 
     if (mesh.userData.alpha < ALPHA_THRESHOLD) {
@@ -96,7 +99,8 @@ export const updateParticles = (
     const results = wasm.update_particles(
       velocities,
       truePositions,
-      particleCount
+      particleCount,
+      delta,
     );
 
     for (let j = 0; j < particleCount; j++) {
@@ -114,7 +118,7 @@ export const updateParticles = (
 
     const snappedPositions = wasm.snap_particle_positions(
       truePositions,
-      particleCount
+      particleCount,
     );
 
     for (let j = 0; j < particleCount; j++) {

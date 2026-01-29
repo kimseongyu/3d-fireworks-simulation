@@ -15,6 +15,7 @@ pub fn update_particles(
     velocities: &[f32],
     true_positions: &[f32],
     particle_count: usize,
+    delta: f32,
 ) -> Vec<f32> {
     let mut result = Vec::with_capacity(particle_count * 6);
 
@@ -25,11 +26,11 @@ pub fn update_particles(
         let vy = velocities[i3 + 1];
         let mut vz = velocities[i3 + 2];
 
-        vz -= GRAVITY;
+        vz -= GRAVITY * delta;
 
-        let tx = true_positions[i3] + vx;
-        let ty = true_positions[i3 + 1] + vy;
-        let tz = true_positions[i3 + 2] + vz;
+        let tx = true_positions[i3] + vx * delta;
+        let ty = true_positions[i3 + 1] + vy * delta;
+        let tz = true_positions[i3 + 2] + vz * delta;
 
         result.push(vx);
         result.push(vy);
@@ -61,15 +62,16 @@ pub fn update_rocket_positions(
     true_positions: &[f32],
     velocities: &[f32],
     rocket_count: usize,
+    delta: f32,
 ) -> Vec<f32> {
     let mut result = Vec::with_capacity(rocket_count * 6);
     
     for i in 0..rocket_count {
         let i3 = i * 3;
         
-        let tx = true_positions[i3] + velocities[i3];
-        let ty = true_positions[i3 + 1] + velocities[i3 + 1];
-        let tz = true_positions[i3 + 2] + velocities[i3 + 2];
+        let tx = true_positions[i3] + velocities[i3] * delta;
+        let ty = true_positions[i3 + 1] + velocities[i3 + 1] * delta;
+        let tz = true_positions[i3 + 2] + velocities[i3 + 2] * delta;
         
         let sx = utils::snap_to_grid(tx, GRID_SIZE);
         let sy = utils::snap_to_grid(ty, GRID_SIZE);

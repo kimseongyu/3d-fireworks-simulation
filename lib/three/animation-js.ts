@@ -16,14 +16,15 @@ const dummy = new THREE.Object3D();
 export const updateRockets = (
   rocketsRef: { current: RocketItem[] },
   particlesRef: { current: THREE.InstancedMesh[] },
-  scene: THREE.Scene
+  scene: THREE.Scene,
+  delta: number,
 ) => {
   for (let i = rocketsRef.current.length - 1; i >= 0; i--) {
     const item = rocketsRef.current[i];
 
-    item.rocket.userData.truePos.x += item.velocity.vx;
-    item.rocket.userData.truePos.y += item.velocity.vy;
-    item.rocket.userData.truePos.z += item.velocity.vz;
+    item.rocket.userData.truePos.x += item.velocity.vx * delta;
+    item.rocket.userData.truePos.y += item.velocity.vy * delta;
+    item.rocket.userData.truePos.z += item.velocity.vz * delta;
 
     item.rocket.position.x = snapToGrid(item.rocket.userData.truePos.x);
     item.rocket.position.y = snapToGrid(item.rocket.userData.truePos.y);
@@ -36,7 +37,7 @@ export const updateRockets = (
       const { group } = fireworkModel.createExplosionJs(
         item.rocket.position.x,
         item.rocket.position.y,
-        item.rocket.position.z
+        item.rocket.position.z,
       );
 
       scene.add(group);
@@ -53,14 +54,15 @@ export const updateRockets = (
 
 export const updateParticles = (
   particlesRef: { current: THREE.InstancedMesh[] },
-  scene: THREE.Scene
+  scene: THREE.Scene,
+  delta: number,
 ) => {
   for (let i = particlesRef.current.length - 1; i >= 0; i--) {
     const mesh = particlesRef.current[i];
     const velocities = mesh.userData.velocities as Float32Array;
     const truePositions = mesh.userData.truePos as Float32Array;
 
-    mesh.userData.alpha *= ALPHA_DECAY;
+    mesh.userData.alpha *= Math.pow(ALPHA_DECAY, delta);
     (mesh.material as THREE.MeshBasicMaterial).opacity = mesh.userData.alpha;
 
     if (mesh.userData.alpha < ALPHA_THRESHOLD) {
@@ -76,11 +78,11 @@ export const updateParticles = (
       const vIdx = j * 3;
       const pIdx = j * 3;
 
-      velocities[vIdx + 2] -= GRAVITY;
+      velocities[vIdx + 2] -= GRAVITY * delta;
 
-      truePositions[pIdx] += velocities[vIdx];
-      truePositions[pIdx + 1] += velocities[vIdx + 1];
-      truePositions[pIdx + 2] += velocities[vIdx + 2];
+      truePositions[pIdx] += velocities[vIdx] * delta;
+      truePositions[pIdx + 1] += velocities[vIdx + 1] * delta;
+      truePositions[pIdx + 2] += velocities[vIdx + 2] * delta;
 
       const snappedX = snapToGrid(truePositions[pIdx]);
       const snappedY = snapToGrid(truePositions[pIdx + 1]);

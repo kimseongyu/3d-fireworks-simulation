@@ -21,7 +21,7 @@ import {
 } from "@/lib/three/animation-wasm";
 import { MARKER_GEOMETRY } from "@/lib/three/assets";
 import { LaunchButton } from "./LaunchButton";
-import { MAX_MARKERS } from "@/lib/three/constants";
+import { MAX_MARKERS, REF_FPS } from "@/lib/three/constants";
 import { TestModule } from "./TestModule";
 import { CanvasType } from "@/app/page";
 import * as wasm from "wasm-lib";
@@ -43,6 +43,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
 
   const mountRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const lastTimeRef = useRef<number>(0);
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -95,15 +96,15 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
 
     for (let i = 0; i < starsCount; i++) {
       const i3 = i * 3;
-      
+
       const radius = 500 + Math.random() * 500;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 2 - 1);
-      
+
       starsPositions[i3] = radius * Math.sin(phi) * Math.cos(theta);
       starsPositions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
       starsPositions[i3 + 2] = radius * Math.cos(phi);
-      
+
       const brightness = 0.5 + Math.random() * 0.5;
       starsColors[i3] = brightness;
       starsColors[i3 + 1] = brightness;
@@ -112,11 +113,11 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
 
     starsGeometry.setAttribute(
       "position",
-      new THREE.BufferAttribute(starsPositions, 3)
+      new THREE.BufferAttribute(starsPositions, 3),
     );
     starsGeometry.setAttribute(
       "color",
-      new THREE.BufferAttribute(starsColors, 3)
+      new THREE.BufferAttribute(starsColors, 3),
     );
 
     const starsMaterial = new THREE.PointsMaterial({
@@ -161,7 +162,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
       new THREE.Vector2(width, height),
       1.5,
       0.4,
-      0.85
+      0.85,
     );
     bloomPass.threshold = 0;
     bloomPass.strength = 1.0;
@@ -197,7 +198,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
     const markerMesh = new THREE.InstancedMesh(
       MARKER_GEOMETRY,
       markerMaterial,
-      MAX_MARKERS
+      MAX_MARKERS,
     );
     markerMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     markerMesh.frustumCulled = false;
@@ -241,7 +242,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(
         new THREE.Vector2(mouseX, mouseY),
-        cameraRef.current
+        cameraRef.current,
       );
       const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
       const target = new THREE.Vector3();
@@ -252,19 +253,27 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
       }
     };
 
-    const animate = () => {
+    const animate = (currentTime: number) => {
       if (statsRef.current) statsRef.current.begin();
 
       animationFrameRef.current = requestAnimationFrame(animate);
       controls.update();
 
+      const lastTime = lastTimeRef.current;
+      lastTimeRef.current = currentTime;
+      const deltaSeconds =
+        lastTime > 0
+          ? Math.min((currentTime - lastTime) / 1000, 1 / REF_FPS)
+          : 1 / REF_FPS;
+      const delta = deltaSeconds * REF_FPS;
+
       if (sceneRef.current && cameraRef.current && rendererRef.current) {
         if (canvasType === "wasm") {
-          updateRocketsWasm(rocketsRef, particlesRef, sceneRef.current);
-          updateParticlesWasm(particlesRef, sceneRef.current);
+          updateRocketsWasm(rocketsRef, particlesRef, sceneRef.current, delta);
+          updateParticlesWasm(particlesRef, sceneRef.current, delta);
         } else {
-          updateRocketsJs(rocketsRef, particlesRef, sceneRef.current);
-          updateParticlesJs(particlesRef, sceneRef.current);
+          updateRocketsJs(rocketsRef, particlesRef, sceneRef.current, delta);
+          updateParticlesJs(particlesRef, sceneRef.current, delta);
         }
 
         if (markerMeshRef.current) {
@@ -286,7 +295,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
     window.addEventListener("resize", handleResize);
     renderer.domElement.addEventListener("mousedown", handleMouseDown);
     renderer.domElement.addEventListener("click", handleClick);
-    animate();
+    animate(performance.now());
 
     return () => {
       window.removeEventListener("resize", handleResize);
@@ -354,7 +363,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
           const { rocket, velocity } = fireworkModel.createRocket(
             firework.x,
             firework.y,
-            0
+            0,
           );
           rocket.userData.launchY = firework.y;
           scene.add(rocket);
