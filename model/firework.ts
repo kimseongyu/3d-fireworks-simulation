@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { FireworkConfig, fireworkConfigs } from "./firework-config";
 import { PIXEL_GEOMETRY, ROCKET_GEOMETRY } from "@/lib/three/assets";
+import type { ParticleItem } from "@/lib/three/types";
 import { snapToGrid, getColorVariation } from "@/lib/utils";
 import * as wasm from "wasm-lib";
 
@@ -42,7 +43,11 @@ export class Firework {
     return { rocket, velocity };
   }
 
-  public createExplosionJs(x: number, y: number, z: number) {
+  public createExplosionJs(
+    x: number,
+    y: number,
+    z: number
+  ): { group: ParticleItem } {
     const velocities = new Float32Array(Firework.PARTICLE_COUNT * 3);
     const material = new THREE.MeshBasicMaterial({
       transparent: true,
@@ -101,14 +106,23 @@ export class Firework {
     }
     instancedMesh.instanceColor!.needsUpdate = true;
 
-    instancedMesh.userData.velocities = velocities;
-    instancedMesh.userData.truePos = truePositions;
-    instancedMesh.userData.alpha = 1.0;
+    const group: ParticleItem = Object.assign(instancedMesh, {
+      userData: {
+        ...instancedMesh.userData,
+        velocities,
+        truePos: truePositions,
+        alpha: 1.0,
+      },
+    });
 
-    return { group: instancedMesh };
+    return { group };
   }
 
-  public createExplosionWasm(x: number, y: number, z: number) {
+  public createExplosionWasm(
+    x: number,
+    y: number,
+    z: number
+  ): { group: ParticleItem } {
     const wasmType = Object.values(fireworkConfigs).indexOf(
       this.config as (typeof fireworkConfigs)[keyof typeof fireworkConfigs]
     );
@@ -158,10 +172,15 @@ export class Firework {
     }
     instancedMesh.instanceColor!.needsUpdate = true;
 
-    instancedMesh.userData.velocities = wasmVelocities;
-    instancedMesh.userData.truePos = truePositions;
-    instancedMesh.userData.alpha = 1.0;
+    const group: ParticleItem = Object.assign(instancedMesh, {
+      userData: {
+        ...instancedMesh.userData,
+        velocities: wasmVelocities,
+        truePos: truePositions,
+        alpha: 1.0,
+      },
+    });
 
-    return { group: instancedMesh };
+    return { group };
   }
 }

@@ -13,12 +13,12 @@ import { useFireworkStore } from "@/store/useFireworkStore";
 import {
   updateRockets as updateRocketsJs,
   updateParticles as updateParticlesJs,
-  RocketItem,
 } from "@/lib/three/animation-js";
 import {
   updateRockets as updateRocketsWasm,
   updateParticles as updateParticlesWasm,
 } from "@/lib/three/animation-wasm";
+import type { RocketItem, ParticleItem } from "@/lib/three/types";
 import { MARKER_GEOMETRY } from "@/lib/three/assets";
 import { LaunchButton } from "./LaunchButton";
 import { MAX_MARKERS, REF_FPS } from "@/lib/three/constants";
@@ -52,7 +52,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
   const statsRef = useRef<Stats | null>(null);
 
   const rocketsRef = useRef<RocketItem[]>([]);
-  const particlesRef = useRef<THREE.InstancedMesh[]>([]);
+  const particlesRef = useRef<ParticleItem[]>([]);
   const markerMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const starsRef = useRef<THREE.Points | null>(null);
   const gridHelperRef = useRef<THREE.GridHelper | null>(null);
@@ -113,11 +113,11 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
 
     starsGeometry.setAttribute(
       "position",
-      new THREE.BufferAttribute(starsPositions, 3),
+      new THREE.BufferAttribute(starsPositions, 3)
     );
     starsGeometry.setAttribute(
       "color",
-      new THREE.BufferAttribute(starsColors, 3),
+      new THREE.BufferAttribute(starsColors, 3)
     );
 
     const starsMaterial = new THREE.PointsMaterial({
@@ -162,7 +162,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
       new THREE.Vector2(width, height),
       1.5,
       0.4,
-      0.85,
+      0.85
     );
     bloomPass.threshold = 0;
     bloomPass.strength = 1.0;
@@ -198,7 +198,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
     const markerMesh = new THREE.InstancedMesh(
       MARKER_GEOMETRY,
       markerMaterial,
-      MAX_MARKERS,
+      MAX_MARKERS
     );
     markerMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     markerMesh.frustumCulled = false;
@@ -242,7 +242,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(
         new THREE.Vector2(mouseX, mouseY),
-        cameraRef.current,
+        cameraRef.current
       );
       const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
       const target = new THREE.Vector3();
@@ -363,7 +363,7 @@ export const Canvas = ({ selectedType, canvasType }: CanvasProps) => {
           const { rocket, velocity } = fireworkModel.createRocket(
             firework.x,
             firework.y,
-            0,
+            0
           );
           rocket.userData.launchY = firework.y;
           scene.add(rocket);

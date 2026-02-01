@@ -1,23 +1,17 @@
 import * as THREE from "three";
 import { Firework } from "@/model/firework";
-import { fireworkConfigs, FireworkType } from "@/model/firework-config";
+import { fireworkConfigs } from "@/model/firework-config";
 import { GRAVITY, ALPHA_DECAY, ALPHA_THRESHOLD } from "./constants";
 import { snapToGrid } from "@/lib/utils";
-
-export interface RocketItem {
-  rocket: THREE.Mesh;
-  velocity: { vx: number; vy: number; vz: number };
-  type: FireworkType;
-  launchY: number;
-}
+import type { ParticleItem, RocketItem } from "./types";
 
 const dummy = new THREE.Object3D();
 
 export const updateRockets = (
   rocketsRef: { current: RocketItem[] },
-  particlesRef: { current: THREE.InstancedMesh[] },
+  particlesRef: { current: ParticleItem[] },
   scene: THREE.Scene,
-  delta: number,
+  delta: number
 ) => {
   for (let i = rocketsRef.current.length - 1; i >= 0; i--) {
     const item = rocketsRef.current[i];
@@ -37,7 +31,7 @@ export const updateRockets = (
       const { group } = fireworkModel.createExplosionJs(
         item.rocket.position.x,
         item.rocket.position.y,
-        item.rocket.position.z,
+        item.rocket.position.z
       );
 
       scene.add(group);
@@ -53,9 +47,9 @@ export const updateRockets = (
 };
 
 export const updateParticles = (
-  particlesRef: { current: THREE.InstancedMesh[] },
+  particlesRef: { current: ParticleItem[] },
   scene: THREE.Scene,
-  delta: number,
+  delta: number
 ) => {
   for (let i = particlesRef.current.length - 1; i >= 0; i--) {
     const mesh = particlesRef.current[i];
