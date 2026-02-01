@@ -1,9 +1,26 @@
 mod utils;
 
 use wasm_bindgen::prelude::*;
+use std::cell::RefCell;
 
 const GRAVITY: f32 = 0.05;
 const GRID_SIZE: f32 = 0.2;
+
+thread_local! {
+    static PARTICLES: RefCell<Vec<Particle>> = RefCell::new(Vec::new());
+    static ROCKETS: RefCell<Vec<Rocket>> = RefCell::new(Vec::new());
+}
+
+struct Rocket {
+    true_pos: [f32; 3],
+    velocity: [f32; 3],
+}
+
+struct Particle {
+    velocities: Vec<f32>,
+    true_positions: Vec<f32>,
+    particle_count: usize,
+}
 
 #[wasm_bindgen(start)]
 pub fn init() {
@@ -11,81 +28,107 @@ pub fn init() {
 }
 
 #[wasm_bindgen]
-pub fn update_particles(
-    velocities: &[f32],
-    true_positions: &[f32],
+pub fn create_rocket(true_pos: Vec<f32>, velocity: Vec<f32>) -> usize {
+    ROCKETS.with(|rockets| {
+        let mut rockets = rockets.borrow_mut();
+        let id = rockets.len();
+        rockets.push(Rocket {
+            true_pos: [true_pos[0], true_pos[1], true_pos[2]],
+            velocity: [velocity[0], velocity[1], velocity[2]],
+        });
+        id
+    })
+}
+
+#[wasm_bindgen]
+pub fn update_rocket(id: usize, delta: f32) -> Vec<f32> {
+    ROCKETS.with(|rockets| {
+        let mut rockets = rockets.borrow_mut();
+        if id >= rockets.len() {
+            return Vec::new();
+        }
+        
+        let rocket = &mut rockets[id];
+        
+        rocket.true_pos[0] += rocket.velocity[0] * delta;
+        rocket.true_pos[1] += rocket.velocity[1] * delta;
+        rocket.true_pos[2] += rocket.velocity[2] * delta;
+        
+        vec![
+            rocket.true_pos[0],
+            rocket.true_pos[1],
+            rocket.true_pos[2],
+            utils::snap_to_grid(rocket.true_pos[0], GRID_SIZE),
+            utils::snap_to_grid(rocket.true_pos[1], GRID_SIZE),
+            utils::snap_to_grid(rocket.true_pos[2], GRID_SIZE),
+        ]
+    })
+}
+
+#[wasm_bindgen]
+pub fn clear_rockets() {
+    ROCKETS.with(|rockets| {
+        let mut rockets = rockets.borrow_mut();
+        rockets.clear();
+    })
+}
+
+#[wasm_bindgen]
+pub fn create_particle(
+    velocities: Vec<f32>,
+    true_positions: Vec<f32>,
     particle_count: usize,
-    delta: f32,
-) -> Vec<f32> {
-    let mut result = Vec::with_capacity(particle_count * 6);
-
-    for i in 0..particle_count {
-        let i3 = i * 3;
-
-        let vx = velocities[i3];
-        let vy = velocities[i3 + 1];
-        let mut vz = velocities[i3 + 2];
-
-        vz -= GRAVITY * delta;
-
-        let tx = true_positions[i3] + vx * delta;
-        let ty = true_positions[i3 + 1] + vy * delta;
-        let tz = true_positions[i3 + 2] + vz * delta;
-
-        result.push(vx);
-        result.push(vy);
-        result.push(vz);
-        result.push(tx);
-        result.push(ty);
-        result.push(tz);
-    }
-
-    result
+) -> usize {
+    PARTICLES.with(|particles| {
+        let mut particles = particles.borrow_mut();
+        let id = particles.len();
+        particles.push(Particle {
+            velocities,
+            true_positions,
+            particle_count,
+        });
+        id
+    })
 }
 
 #[wasm_bindgen]
-pub fn snap_particle_positions(true_positions: &[f32], particle_count: usize) -> Vec<f32> {
-    let mut snapped = Vec::with_capacity(particle_count * 3);
-    
-    for i in 0..particle_count {
-        let i3 = i * 3;
-        snapped.push(utils::snap_to_grid(true_positions[i3], GRID_SIZE));
-        snapped.push(utils::snap_to_grid(true_positions[i3 + 1], GRID_SIZE));
-        snapped.push(utils::snap_to_grid(true_positions[i3 + 2], GRID_SIZE));
-    }
-    
-    snapped
+pub fn update_particle(id: usize, delta: f32) -> Vec<f32> {
+    PARTICLES.with(|particles| {
+        let mut particles = particles.borrow_mut();
+        if id >= particles.len() {
+            return Vec::new();
+        }
+        
+        let particle = &mut particles[id];
+        
+        for i in 0..particle.particle_count {
+            let i3 = i * 3;
+            
+            particle.velocities[i3 + 2] -= GRAVITY * delta;
+            
+            particle.true_positions[i3] += particle.velocities[i3] * delta;
+            particle.true_positions[i3 + 1] += particle.velocities[i3 + 1] * delta;
+            particle.true_positions[i3 + 2] += particle.velocities[i3 + 2] * delta;
+        }
+        
+        let mut snapped = Vec::with_capacity(particle.particle_count * 3);
+        for i in 0..particle.particle_count {
+            let i3 = i * 3;
+            snapped.push(utils::snap_to_grid(particle.true_positions[i3], GRID_SIZE));
+            snapped.push(utils::snap_to_grid(particle.true_positions[i3 + 1], GRID_SIZE));
+            snapped.push(utils::snap_to_grid(particle.true_positions[i3 + 2], GRID_SIZE));
+        }
+        
+        snapped
+    })
 }
 
 #[wasm_bindgen]
-pub fn update_rocket_positions(
-    true_positions: &[f32],
-    velocities: &[f32],
-    rocket_count: usize,
-    delta: f32,
-) -> Vec<f32> {
-    let mut result = Vec::with_capacity(rocket_count * 6);
-    
-    for i in 0..rocket_count {
-        let i3 = i * 3;
-        
-        let tx = true_positions[i3] + velocities[i3] * delta;
-        let ty = true_positions[i3 + 1] + velocities[i3 + 1] * delta;
-        let tz = true_positions[i3 + 2] + velocities[i3 + 2] * delta;
-        
-        let sx = utils::snap_to_grid(tx, GRID_SIZE);
-        let sy = utils::snap_to_grid(ty, GRID_SIZE);
-        let sz = utils::snap_to_grid(tz, GRID_SIZE);
-        
-        result.push(tx);
-        result.push(ty);
-        result.push(tz);
-        result.push(sx);
-        result.push(sy);
-        result.push(sz);
-    }
-    
-    result
+pub fn clear_particles() {
+    PARTICLES.with(|particles| {
+        let mut particles = particles.borrow_mut();
+        particles.clear();
+    })
 }
 
 #[wasm_bindgen]

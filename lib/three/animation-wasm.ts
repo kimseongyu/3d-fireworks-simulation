@@ -2,54 +2,47 @@ import * as THREE from "three";
 import { Firework } from "@/model/firework";
 import { fireworkConfigs } from "@/model/firework-config";
 import { ALPHA_DECAY, ALPHA_THRESHOLD } from "./constants";
-import { RocketItem } from "./animation-js";
+import type { ParticleItem, ParticleSystemWasm, RocketItemWasm } from "./types";
 import * as wasm from "wasm-lib";
 
 const dummy = new THREE.Object3D();
 
 export const updateRockets = (
-  rocketsRef: { current: RocketItem[] },
-  particlesRef: { current: THREE.InstancedMesh[] },
+  rocketsRef: { current: RocketItemWasm[] },
+  particlesRef: { current: ParticleItem[] },
   scene: THREE.Scene,
-  delta: number,
+  delta: number
 ) => {
   if (rocketsRef.current.length === 0) return;
 
-  const rocketCount = rocketsRef.current.length;
-  const truePositions = new Float32Array(rocketCount * 3);
-  const velocities = new Float32Array(rocketCount * 3);
-
-  for (let i = 0; i < rocketCount; i++) {
-    const item = rocketsRef.current[i];
-    const i3 = i * 3;
-
-    truePositions[i3] = item.rocket.userData.truePos.x;
-    truePositions[i3 + 1] = item.rocket.userData.truePos.y;
-    truePositions[i3 + 2] = item.rocket.userData.truePos.z || 0;
-
-    velocities[i3] = item.velocity.vx;
-    velocities[i3 + 1] = item.velocity.vy;
-    velocities[i3 + 2] = item.velocity.vz;
-  }
-
-  const results = wasm.update_rocket_positions(
-    truePositions,
-    velocities,
-    rocketCount,
-    delta,
-  );
-
   for (let i = rocketsRef.current.length - 1; i >= 0; i--) {
     const item = rocketsRef.current[i];
-    const i6 = i * 6;
 
-    item.rocket.userData.truePos.x = results[i6];
-    item.rocket.userData.truePos.y = results[i6 + 1];
-    item.rocket.userData.truePos.z = results[i6 + 2];
+    if (item.wasmId === undefined) {
+      const truePos = new Float32Array([
+        item.rocket.userData.truePos.x,
+        item.rocket.userData.truePos.y,
+        item.rocket.userData.truePos.z || 0,
+      ]);
+      const velocity = new Float32Array([
+        item.velocity.vx,
+        item.velocity.vy,
+        item.velocity.vz,
+      ]);
+      item.wasmId = wasm.create_rocket(truePos, velocity);
+    }
 
-    item.rocket.position.x = results[i6 + 3];
-    item.rocket.position.y = results[i6 + 4];
-    item.rocket.position.z = results[i6 + 5];
+    const results = wasm.update_rocket(item.wasmId, delta);
+
+    if (results.length === 6) {
+      item.rocket.userData.truePos.x = results[0];
+      item.rocket.userData.truePos.y = results[1];
+      item.rocket.userData.truePos.z = results[2];
+
+      item.rocket.position.x = results[3];
+      item.rocket.position.y = results[4];
+      item.rocket.position.z = results[5];
+    }
 
     const targetHeight = Firework.EXPLOSION_HEIGHT;
 
@@ -58,7 +51,7 @@ export const updateRockets = (
       const { group } = fireworkModel.createExplosionWasm(
         item.rocket.position.x,
         item.rocket.position.y,
-        item.rocket.position.z,
+        item.rocket.position.z
       );
 
       scene.add(group);
@@ -68,21 +61,34 @@ export const updateRockets = (
       if (item.rocket.material instanceof THREE.Material) {
         item.rocket.material.dispose();
       }
+
       rocketsRef.current.splice(i, 1);
     }
+  }
+
+  if (rocketsRef.current.length === 0) {
+    wasm.clear_rockets();
   }
 };
 
 export const updateParticles = (
-  particlesRef: { current: THREE.InstancedMesh[] },
+  particlesRef: { current: ParticleItem[] },
   scene: THREE.Scene,
-  delta: number,
+  delta: number
 ) => {
+  if (particlesRef.current.length === 0) return;
+
   for (let i = particlesRef.current.length - 1; i >= 0; i--) {
-    const mesh = particlesRef.current[i];
-    const velocities = mesh.userData.velocities as Float32Array;
-    const truePositions = mesh.userData.truePos as Float32Array;
+    const mesh: ParticleSystemWasm = particlesRef.current[i];
     const particleCount = mesh.count;
+
+    if (mesh.userData.wasmId === undefined) {
+      mesh.userData.wasmId = wasm.create_particle(
+        mesh.userData.velocities,
+        mesh.userData.truePos,
+        particleCount
+      );
+    }
 
     mesh.userData.alpha *= Math.pow(ALPHA_DECAY, delta);
     (mesh.material as THREE.MeshBasicMaterial).opacity = mesh.userData.alpha;
@@ -92,34 +98,12 @@ export const updateParticles = (
       if (mesh.material instanceof THREE.Material) {
         mesh.material.dispose();
       }
+
       particlesRef.current.splice(i, 1);
       continue;
     }
 
-    const results = wasm.update_particles(
-      velocities,
-      truePositions,
-      particleCount,
-      delta,
-    );
-
-    for (let j = 0; j < particleCount; j++) {
-      const j6 = j * 6;
-      const j3 = j * 3;
-
-      velocities[j3] = results[j6];
-      velocities[j3 + 1] = results[j6 + 1];
-      velocities[j3 + 2] = results[j6 + 2];
-
-      truePositions[j3] = results[j6 + 3];
-      truePositions[j3 + 1] = results[j6 + 4];
-      truePositions[j3 + 2] = results[j6 + 5];
-    }
-
-    const snappedPositions = wasm.snap_particle_positions(
-      truePositions,
-      particleCount,
-    );
+    const snappedPositions = wasm.update_particle(mesh.userData.wasmId, delta);
 
     for (let j = 0; j < particleCount; j++) {
       const j3 = j * 3;
@@ -133,5 +117,9 @@ export const updateParticles = (
     }
 
     mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  if (particlesRef.current.length === 0) {
+    wasm.clear_particles();
   }
 };
